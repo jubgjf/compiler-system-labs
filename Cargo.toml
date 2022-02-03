@@ -2,4 +2,5 @@
 
 members = [
     "lab1-lexer",
+    "web-backend"
 ]
