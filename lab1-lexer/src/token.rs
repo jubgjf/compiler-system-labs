@@ -361,12 +361,13 @@ pub fn lex_operator(target: &[char], index: &mut usize, word: &mut String) -> To
 ///
 /// 识别出的有效词存在 `word` 中
 pub fn lex_literal(target: &[char], index: &mut usize, word: &mut String) -> Token {
-    // TODO 复杂数字形式
-
-    let mut state = 2;
-
-    let mut curr_index = *index + 1;
+    let mut curr_index = *index;
     let mut curr_ch = util::nth(target, curr_index);
+
+    let mut state = if curr_ch == '0' { 8 } else { 2 };
+
+    curr_index += 1;
+    curr_ch = util::nth(target, curr_index);
 
     loop {
         match state {
@@ -379,6 +380,10 @@ pub fn lex_literal(target: &[char], index: &mut usize, word: &mut String) -> Tok
                     curr_index += 1;
                     curr_ch = util::nth(target, curr_index);
                     state = 3;
+                } else if curr_ch == 'E' || curr_ch == 'e' {
+                    curr_index += 1;
+                    curr_ch = util::nth(target, curr_index);
+                    state = 5;
                 } else {
                     *word = String::from_iter(target[*index..curr_index].iter());
                     *index = curr_index - 1;
@@ -403,10 +408,160 @@ pub fn lex_literal(target: &[char], index: &mut usize, word: &mut String) -> Tok
                     curr_index += 1;
                     curr_ch = util::nth(target, curr_index);
                     state = 4;
+                } else if curr_ch == 'E' || curr_ch == 'e' {
+                    curr_index += 1;
+                    curr_ch = util::nth(target, curr_index);
+                    state = 5;
                 } else {
                     *word = String::from_iter(target[*index..curr_index].iter());
                     *index = curr_index - 1;
                     return Token::LiteralFloat(word.parse().unwrap());
+                }
+            }
+            5 => {
+                if curr_ch.is_ascii_digit() {
+                    curr_index += 1;
+                    curr_ch = util::nth(target, curr_index);
+                    state = 7;
+                } else if curr_ch == '+' || curr_ch == '-' {
+                    curr_index += 1;
+                    curr_ch = util::nth(target, curr_index);
+                    state = 6;
+                } else {
+                    backtrack();
+
+                    *word = String::from_iter(target[*index..curr_index].iter());
+                    *index = curr_index - 1;
+                    return Token::Unknown;
+                }
+            }
+            6 => {
+                if curr_ch.is_ascii_digit() {
+                    curr_index += 1;
+                    curr_ch = util::nth(target, curr_index);
+                    state = 7;
+                } else {
+                    backtrack();
+
+                    *word = String::from_iter(target[*index..curr_index].iter());
+                    *index = curr_index - 1;
+                    return Token::Unknown;
+                }
+            }
+            7 => {
+                if curr_ch.is_ascii_digit() {
+                    curr_index += 1;
+                    curr_ch = util::nth(target, curr_index);
+                    state = 7;
+                } else {
+                    *word = String::from_iter(target[*index..curr_index].iter());
+                    *index = curr_index - 1;
+                    return Token::LiteralFloat(word.parse().unwrap());
+                }
+            }
+            8 => {
+                if curr_ch.is_ascii_digit() {
+                    state = if curr_ch == '8' || curr_ch == '9' {
+                        10
+                    } else {
+                        9
+                    };
+                    curr_index += 1;
+                    curr_ch = util::nth(target, curr_index);
+                } else if curr_ch == 'x' {
+                    curr_index += 1;
+                    curr_ch = util::nth(target, curr_index);
+                    state = 11;
+                } else {
+                    *word = String::from_iter(target[*index..curr_index].iter());
+                    *index = curr_index - 1;
+                    return Token::LiteralInt10(0);
+                }
+            }
+            9 => {
+                if curr_ch.is_ascii_digit() {
+                    state = if curr_ch == '8' || curr_ch == '9' {
+                        10
+                    } else {
+                        9
+                    };
+                    curr_index += 1;
+                    curr_ch = util::nth(target, curr_index);
+                } else if curr_ch == '.' {
+                    curr_index += 1;
+                    curr_ch = util::nth(target, curr_index);
+                    state = 3;
+                } else {
+                    *word = String::from_iter(target[*index..curr_index].iter());
+                    *index = curr_index - 1;
+                    return Token::LiteralInt8(i32::from_str_radix(&word[1..], 8).unwrap());
+                }
+            }
+            10 => {
+                if curr_ch == '8' || curr_ch == '9' {
+                    curr_index += 1;
+                    curr_ch = util::nth(target, curr_index);
+                    state = 10;
+                } else if curr_ch == '.' {
+                    curr_index += 1;
+                    curr_ch = util::nth(target, curr_index);
+                    state = 3;
+                } else {
+                    backtrack();
+
+                    *word = String::from_iter(target[*index..curr_index].iter());
+                    *index = curr_index - 1;
+                    return Token::Unknown;
+                }
+            }
+            11 => {
+                if curr_ch.is_ascii_digit()
+                    || curr_ch == 'a'
+                    || curr_ch == 'b'
+                    || curr_ch == 'c'
+                    || curr_ch == 'd'
+                    || curr_ch == 'e'
+                    || curr_ch == 'f'
+                    || curr_ch == 'A'
+                    || curr_ch == 'B'
+                    || curr_ch == 'C'
+                    || curr_ch == 'D'
+                    || curr_ch == 'E'
+                    || curr_ch == 'F'
+                {
+                    curr_index += 1;
+                    curr_ch = util::nth(target, curr_index);
+                    state = 12;
+                } else {
+                    backtrack();
+
+                    *word = String::from_iter(target[*index..curr_index].iter());
+                    *index = curr_index - 1;
+                    return Token::Unknown;
+                }
+            }
+            12 => {
+                if curr_ch.is_ascii_digit()
+                    || curr_ch == 'a'
+                    || curr_ch == 'b'
+                    || curr_ch == 'c'
+                    || curr_ch == 'd'
+                    || curr_ch == 'e'
+                    || curr_ch == 'f'
+                    || curr_ch == 'A'
+                    || curr_ch == 'B'
+                    || curr_ch == 'C'
+                    || curr_ch == 'D'
+                    || curr_ch == 'E'
+                    || curr_ch == 'F'
+                {
+                    curr_index += 1;
+                    curr_ch = util::nth(target, curr_index);
+                    state = 12;
+                } else {
+                    *word = String::from_iter(target[*index..curr_index].iter());
+                    *index = curr_index - 1;
+                    return Token::LiteralInt16(i32::from_str_radix(&word[2..], 16).unwrap());
                 }
             }
             _ => {
