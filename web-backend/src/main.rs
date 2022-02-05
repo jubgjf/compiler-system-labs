@@ -31,6 +31,7 @@ fn rocket() -> _ {
 
 pub struct CORS;
 
+/// 响应跨域请求
 #[rocket::async_trait]
 impl Fairing for CORS {
     fn info(&self) -> Info {

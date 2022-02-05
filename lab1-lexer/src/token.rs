@@ -147,10 +147,10 @@ impl Display for Token {
             Token::GreaterEqual => write!(f, "<GREATEREQUAL, _>"),
             Token::LessEqual => write!(f, "<LESSEQUAL, _>"),
             Token::Assign => write!(f, "<ASSIGN, _>"),
-            Token::LiteralInt10(num) => write!(f, "<LITERALINT10, {}>,", num),
-            Token::LiteralInt8(num) => write!(f, "<LITERALINT8, {}>,", num),
-            Token::LiteralInt16(num) => write!(f, "<LITERALINT16, {}>,", num),
-            Token::LiteralFloat(num) => write!(f, "<LITERALFLOAT, {}>,", num),
+            Token::LiteralInt10(num) => write!(f, "<LITERALINT10, {}>", num),
+            Token::LiteralInt8(num) => write!(f, "<LITERALINT8, {}>", num),
+            Token::LiteralInt16(num) => write!(f, "<LITERALINT16, {}>", num),
+            Token::LiteralFloat(num) => write!(f, "<LITERALFLOAT, {}>", num),
             Token::BlockComment(cmt) => write!(f, "<BLOCKCOMMENT, {}>", cmt),
             Token::LineComment(cmt) => write!(f, "<LINECOMMENT, {}>", cmt),
             Token::Unknown => write!(f, "<UNKNOWN, _>"),
@@ -162,6 +162,7 @@ impl Display for Token {
 ///
 /// 识别出的有效词存在 `word` 中
 pub fn lex_identifier(target: &[char], index: &mut usize, word: &mut String) -> Token {
+    // 关键字与 Token 的对应关系
     let mut keyword_map = HashMap::from([
         ("break", Token::Break),
         ("case", Token::Case),
@@ -213,13 +214,17 @@ pub fn lex_identifier(target: &[char], index: &mut usize, word: &mut String) -> 
     let mut curr_ch = util::nth(target, curr_index);
 
     while curr_ch.is_ascii_digit() || curr_ch.is_ascii_alphabetic() || curr_ch == '_' {
-        curr_index += 1;
-        curr_ch = util::nth(target, curr_index);
+        read_next(target, &mut curr_index, &mut curr_ch);
     }
 
-    *word = String::from_iter(target[*index..curr_index].iter());
-    *index = curr_index - 1;
-    Token::Identifier(word.to_string())
+    terminate(
+        target,
+        index,
+        curr_index,
+        word,
+        Token::Identifier(String::new()),
+        false,
+    )
 }
 
 /// 在 `target` 序列中，从下标为 `index` 处识别出界限符 token；
@@ -245,52 +250,63 @@ pub fn lex_separator(target: &[char], index: &mut usize, word: &mut String) -> T
 ///
 /// 识别出的有效词存在 `word` 中
 pub fn lex_comment(target: &[char], index: &mut usize, word: &mut String) -> Token {
-    let mut curr_index = *index + 2;
+    let mut curr_index = *index + 1; // 跳过注释的第一个字符 '/'
+    let mut curr_ch = util::nth(target, curr_index);
 
-    match util::nth(target, curr_index - 1) {
+    match curr_ch {
         // 块注释 /**/
         '*' => {
             let mut state = 14;
 
-            loop {
-                let curr_ch = util::nth(target, curr_index);
+            read_next(target, &mut curr_index, &mut curr_ch);
 
+            loop {
                 match state {
                     14 => {
                         if curr_ch == '*' {
-                            curr_index += 1;
-                            state = 15;
+                            change_state(target, &mut curr_index, &mut curr_ch, &mut state, 15);
                         } else if curr_ch == '\0' {
-                            backtrack();
-
-                            *word = String::from_iter(target[*index..curr_index].iter());
-                            *index = curr_index;
-
-                            return Token::Unknown;
-                        } else {
                             curr_index += 1;
-                            state = 14;
+
+                            return terminate(
+                                target,
+                                index,
+                                curr_index,
+                                word,
+                                Token::Unknown,
+                                true,
+                            );
+                        } else {
+                            change_state(target, &mut curr_index, &mut curr_ch, &mut state, 14);
                         }
                     }
                     15 => {
                         if curr_ch == '*' {
-                            curr_index += 1;
-                            state = 15;
+                            change_state(target, &mut curr_index, &mut curr_ch, &mut state, 15);
                         } else if curr_ch == '/' {
-                            *word = String::from_iter(target[*index..curr_index + 1].iter());
-                            *index = curr_index;
-
-                            return Token::BlockComment(word.replace("\n", "\\n"));
-                        } else if curr_ch == '\0' {
-                            backtrack();
-
-                            *word = String::from_iter(target[*index..curr_index].iter());
-                            *index = curr_index;
-
-                            return Token::Unknown;
-                        } else {
                             curr_index += 1;
-                            state = 14;
+
+                            return terminate(
+                                target,
+                                index,
+                                curr_index,
+                                word,
+                                Token::BlockComment(String::new()),
+                                false,
+                            );
+                        } else if curr_ch == '\0' {
+                            curr_index += 1;
+
+                            return terminate(
+                                target,
+                                index,
+                                curr_index,
+                                word,
+                                Token::Unknown,
+                                true,
+                            );
+                        } else {
+                            change_state(target, &mut curr_index, &mut curr_ch, &mut state, 14);
                         }
                     }
                     _ => {
@@ -302,18 +318,17 @@ pub fn lex_comment(target: &[char], index: &mut usize, word: &mut String) -> Tok
 
         // 行注释 //
         '/' => loop {
-            let curr_ch = util::nth(target, curr_index);
+            read_next(target, &mut curr_index, &mut curr_ch);
 
-            match curr_ch {
-                '\n' | '\0' => {
-                    *word = String::from_iter(target[*index..curr_index].iter());
-                    *index = curr_index;
-
-                    return Token::LineComment(word.to_string());
-                }
-                _ => {
-                    curr_index += 1;
-                }
+            if curr_ch == '\n' || curr_ch == '\0' {
+                return terminate(
+                    target,
+                    index,
+                    curr_index,
+                    word,
+                    Token::LineComment(String::new()),
+                    false,
+                );
             }
         },
 
@@ -328,23 +343,52 @@ pub fn lex_comment(target: &[char], index: &mut usize, word: &mut String) -> Tok
 ///
 /// 识别出的有效词存在 `word` 中
 pub fn lex_operator(target: &[char], index: &mut usize, word: &mut String) -> Token {
-    let map = HashMap::from([
-        ('+', '+'),
-        ('-', '-'),
-        ('!', '='),
-        ('<', '='),
-        ('>', '='),
-        ('=', '='),
-        ('&', '&'),
-        ('|', '|'),
+    // (key) 是一个运算符，且 (key + value) 也组成运算符
+    let operators = HashMap::from([
+        ('+', '+'), // ++
+        ('-', '-'), // --
+        ('!', '='), // !=
+        ('<', '='), // <=
+        ('>', '='), // >=
+        ('=', '='), // ==
+        ('&', '&'), // &&
+        ('|', '|'), // ||
+    ]);
+
+    // 运算符与 Token 的对应关系
+    let mut operator_map = HashMap::from([
+        // 算数运算
+        ("&&", Token::And),   // 逻辑与 &&
+        ("||", Token::Or),    // 逻辑或 ||
+        ("!", Token::Not),    // 非 !
+        ("^", Token::Xor),    // 异或 ^
+        ("&", Token::BitAnd), // 按位与 &
+        ("|", Token::BitOr),  // 按位或 |
+        // 关系运算
+        ("+", Token::Add),       // 加法 +
+        ("-", Token::Subtract),  // 减法 -
+        ("*", Token::Multipliy), // 乘法 *
+        ("/", Token::Division),  // 除法 /
+        ("%", Token::Mod),       // 模 %
+        ("++", Token::Increase), // 自增 ++
+        ("--", Token::Decrease), // 自减 --
+        // 逻辑运算
+        ("==", Token::Equal),        // 等于 ==
+        ("!=", Token::Notequal),     // 不等于 !=
+        (">", Token::Greater),       // 大于 >
+        ("<", Token::Less),          // 小于 <
+        (">=", Token::GreaterEqual), // 大于等于 >=
+        ("<=", Token::LessEqual),    // 小于等于 <=
+        // 赋值
+        ("=", Token::Assign), // 赋值 =
     ]);
 
     let curr_ch = util::nth(target, *index);
     let next_ch = util::nth(target, *index + 1);
 
     *word = match curr_ch {
-        c if map.contains_key(&c) => {
-            if next_ch == *map.get(&curr_ch).unwrap() {
+        c if operators.contains_key(&c) => {
+            if next_ch == *operators.get(&curr_ch).unwrap() {
                 *index += 1;
                 String::from_iter(target[*index - 1..*index + 1].iter())
             } else {
@@ -354,7 +398,7 @@ pub fn lex_operator(target: &[char], index: &mut usize, word: &mut String) -> To
         _ => String::from(target[*index]),
     };
 
-    token_map(word)
+    operator_map.remove(word.as_str()).unwrap()
 }
 
 /// 在 `target` 序列中，从下标为 `index` 处识别出字面值 token；
@@ -366,202 +410,145 @@ pub fn lex_literal(target: &[char], index: &mut usize, word: &mut String) -> Tok
 
     let mut state = if curr_ch == '0' { 8 } else { 2 };
 
-    curr_index += 1;
-    curr_ch = util::nth(target, curr_index);
+    read_next(target, &mut curr_index, &mut curr_ch);
 
     loop {
         match state {
             2 => {
                 if curr_ch.is_ascii_digit() {
-                    curr_index += 1;
-                    curr_ch = util::nth(target, curr_index);
-                    state = 2;
+                    change_state(target, &mut curr_index, &mut curr_ch, &mut state, 2);
                 } else if curr_ch == '.' {
-                    curr_index += 1;
-                    curr_ch = util::nth(target, curr_index);
-                    state = 3;
+                    change_state(target, &mut curr_index, &mut curr_ch, &mut state, 3);
                 } else if curr_ch == 'E' || curr_ch == 'e' {
-                    curr_index += 1;
-                    curr_ch = util::nth(target, curr_index);
-                    state = 5;
+                    change_state(target, &mut curr_index, &mut curr_ch, &mut state, 5);
                 } else {
-                    *word = String::from_iter(target[*index..curr_index].iter());
-                    *index = curr_index - 1;
-                    return Token::LiteralInt10(word.parse().unwrap());
+                    return terminate(
+                        target,
+                        index,
+                        curr_index,
+                        word,
+                        Token::LiteralInt10(0),
+                        false,
+                    );
                 }
             }
             3 => {
                 if curr_ch.is_ascii_digit() {
-                    curr_index += 1;
-                    curr_ch = util::nth(target, curr_index);
-                    state = 4;
+                    change_state(target, &mut curr_index, &mut curr_ch, &mut state, 4);
                 } else {
-                    backtrack();
-
-                    *word = String::from_iter(target[*index..curr_index].iter());
-                    *index = curr_index - 1;
-                    return Token::Unknown;
+                    return terminate(target, index, curr_index, word, Token::Unknown, true);
                 }
             }
             4 => {
                 if curr_ch.is_ascii_digit() {
-                    curr_index += 1;
-                    curr_ch = util::nth(target, curr_index);
-                    state = 4;
+                    change_state(target, &mut curr_index, &mut curr_ch, &mut state, 4);
                 } else if curr_ch == 'E' || curr_ch == 'e' {
-                    curr_index += 1;
-                    curr_ch = util::nth(target, curr_index);
-                    state = 5;
+                    change_state(target, &mut curr_index, &mut curr_ch, &mut state, 5);
                 } else {
-                    *word = String::from_iter(target[*index..curr_index].iter());
-                    *index = curr_index - 1;
-                    return Token::LiteralFloat(word.parse().unwrap());
+                    return terminate(
+                        target,
+                        index,
+                        curr_index,
+                        word,
+                        Token::LiteralFloat(0.0),
+                        false,
+                    );
                 }
             }
             5 => {
                 if curr_ch.is_ascii_digit() {
-                    curr_index += 1;
-                    curr_ch = util::nth(target, curr_index);
-                    state = 7;
+                    change_state(target, &mut curr_index, &mut curr_ch, &mut state, 7);
                 } else if curr_ch == '+' || curr_ch == '-' {
-                    curr_index += 1;
-                    curr_ch = util::nth(target, curr_index);
-                    state = 6;
+                    change_state(target, &mut curr_index, &mut curr_ch, &mut state, 6);
                 } else {
-                    backtrack();
-
-                    *word = String::from_iter(target[*index..curr_index].iter());
-                    *index = curr_index - 1;
-                    return Token::Unknown;
+                    return terminate(target, index, curr_index, word, Token::Unknown, true);
                 }
             }
             6 => {
                 if curr_ch.is_ascii_digit() {
-                    curr_index += 1;
-                    curr_ch = util::nth(target, curr_index);
-                    state = 7;
+                    change_state(target, &mut curr_index, &mut curr_ch, &mut state, 7);
                 } else {
-                    backtrack();
-
-                    *word = String::from_iter(target[*index..curr_index].iter());
-                    *index = curr_index - 1;
-                    return Token::Unknown;
+                    return terminate(target, index, curr_index, word, Token::Unknown, true);
                 }
             }
             7 => {
                 if curr_ch.is_ascii_digit() {
-                    curr_index += 1;
-                    curr_ch = util::nth(target, curr_index);
-                    state = 7;
+                    change_state(target, &mut curr_index, &mut curr_ch, &mut state, 7);
                 } else {
-                    *word = String::from_iter(target[*index..curr_index].iter());
-                    *index = curr_index - 1;
-                    return Token::LiteralFloat(word.parse().unwrap());
+                    return terminate(
+                        target,
+                        index,
+                        curr_index,
+                        word,
+                        Token::LiteralFloat(0.0),
+                        false,
+                    );
                 }
             }
             8 => {
-                if curr_ch.is_ascii_digit() {
-                    state = if curr_ch == '8' || curr_ch == '9' {
-                        10
-                    } else {
-                        9
-                    };
-                    curr_index += 1;
-                    curr_ch = util::nth(target, curr_index);
+                if curr_ch == '8' || curr_ch == '9' {
+                    change_state(target, &mut curr_index, &mut curr_ch, &mut state, 10);
+                } else if curr_ch.is_ascii_digit() {
+                    change_state(target, &mut curr_index, &mut curr_ch, &mut state, 9);
                 } else if curr_ch == 'x' {
-                    curr_index += 1;
-                    curr_ch = util::nth(target, curr_index);
-                    state = 11;
+                    change_state(target, &mut curr_index, &mut curr_ch, &mut state, 11);
                 } else {
-                    *word = String::from_iter(target[*index..curr_index].iter());
-                    *index = curr_index - 1;
-                    return Token::LiteralInt10(0);
+                    return terminate(
+                        target,
+                        index,
+                        curr_index,
+                        word,
+                        Token::LiteralInt10(0),
+                        false,
+                    );
                 }
             }
             9 => {
-                if curr_ch.is_ascii_digit() {
-                    state = if curr_ch == '8' || curr_ch == '9' {
-                        10
-                    } else {
-                        9
-                    };
-                    curr_index += 1;
-                    curr_ch = util::nth(target, curr_index);
+                if curr_ch == '8' || curr_ch == '9' {
+                    change_state(target, &mut curr_index, &mut curr_ch, &mut state, 10);
+                } else if curr_ch.is_ascii_digit() {
+                    change_state(target, &mut curr_index, &mut curr_ch, &mut state, 9);
                 } else if curr_ch == '.' {
-                    curr_index += 1;
-                    curr_ch = util::nth(target, curr_index);
-                    state = 3;
+                    change_state(target, &mut curr_index, &mut curr_ch, &mut state, 3);
                 } else {
-                    *word = String::from_iter(target[*index..curr_index].iter());
-                    *index = curr_index - 1;
-                    return Token::LiteralInt8(i32::from_str_radix(&word[1..], 8).unwrap());
+                    return terminate(
+                        target,
+                        index,
+                        curr_index,
+                        word,
+                        Token::LiteralInt8(0),
+                        false,
+                    );
                 }
             }
             10 => {
                 if curr_ch == '8' || curr_ch == '9' {
-                    curr_index += 1;
-                    curr_ch = util::nth(target, curr_index);
-                    state = 10;
+                    change_state(target, &mut curr_index, &mut curr_ch, &mut state, 10);
                 } else if curr_ch == '.' {
-                    curr_index += 1;
-                    curr_ch = util::nth(target, curr_index);
-                    state = 3;
+                    change_state(target, &mut curr_index, &mut curr_ch, &mut state, 3);
                 } else {
-                    backtrack();
-
-                    *word = String::from_iter(target[*index..curr_index].iter());
-                    *index = curr_index - 1;
-                    return Token::Unknown;
+                    return terminate(target, index, curr_index, word, Token::Unknown, true);
                 }
             }
             11 => {
-                if curr_ch.is_ascii_digit()
-                    || curr_ch == 'a'
-                    || curr_ch == 'b'
-                    || curr_ch == 'c'
-                    || curr_ch == 'd'
-                    || curr_ch == 'e'
-                    || curr_ch == 'f'
-                    || curr_ch == 'A'
-                    || curr_ch == 'B'
-                    || curr_ch == 'C'
-                    || curr_ch == 'D'
-                    || curr_ch == 'E'
-                    || curr_ch == 'F'
-                {
-                    curr_index += 1;
-                    curr_ch = util::nth(target, curr_index);
-                    state = 12;
+                if curr_ch.is_ascii_hexdigit() {
+                    change_state(target, &mut curr_index, &mut curr_ch, &mut state, 12);
                 } else {
-                    backtrack();
-
-                    *word = String::from_iter(target[*index..curr_index].iter());
-                    *index = curr_index - 1;
-                    return Token::Unknown;
+                    return terminate(target, index, curr_index, word, Token::Unknown, true);
                 }
             }
             12 => {
-                if curr_ch.is_ascii_digit()
-                    || curr_ch == 'a'
-                    || curr_ch == 'b'
-                    || curr_ch == 'c'
-                    || curr_ch == 'd'
-                    || curr_ch == 'e'
-                    || curr_ch == 'f'
-                    || curr_ch == 'A'
-                    || curr_ch == 'B'
-                    || curr_ch == 'C'
-                    || curr_ch == 'D'
-                    || curr_ch == 'E'
-                    || curr_ch == 'F'
-                {
-                    curr_index += 1;
-                    curr_ch = util::nth(target, curr_index);
-                    state = 12;
+                if curr_ch.is_ascii_hexdigit() {
+                    change_state(target, &mut curr_index, &mut curr_ch, &mut state, 12);
                 } else {
-                    *word = String::from_iter(target[*index..curr_index].iter());
-                    *index = curr_index - 1;
-                    return Token::LiteralInt16(i32::from_str_radix(&word[2..], 16).unwrap());
+                    return terminate(
+                        target,
+                        index,
+                        curr_index,
+                        word,
+                        Token::LiteralInt16(0),
+                        false,
+                    );
                 }
             }
             _ => {
@@ -614,37 +601,60 @@ pub fn backtrack() {
     print!("Err>> ");
 }
 
-/// 给定字符串 `word`，返回其对应的 token
+/// 将 `state` 的值更新为 `target_state`，
+/// 同时从 `vec_ch` 中获取 `index` 的下一个字符，存放到 `ch` 中，并更新 `index`
 ///
-/// 若不存在对应的 token，则返回 [`Token::Unknown`]
-pub fn token_map(word: &str) -> Token {
-    match word {
-        // 算数运算
-        "&&" => Token::And,   // 逻辑与 &&
-        "||" => Token::Or,    // 逻辑或 ||
-        "!" => Token::Not,    // 非 !
-        "^" => Token::Xor,    // 异或 ^
-        "&" => Token::BitAnd, // 按位与 &
-        "|" => Token::BitOr,  // 按位或 |
-        // 关系运算
-        "+" => Token::Add,       // 加法 +
-        "-" => Token::Subtract,  // 减法 -
-        "*" => Token::Multipliy, // 乘法 *
-        "/" => Token::Division,  // 除法 /
-        "%" => Token::Mod,       // 模 %
-        "++" => Token::Increase, // 自增 ++
-        "--" => Token::Decrease, // 自减 --
-        // 逻辑运算
-        "==" => Token::Equal,        // 等于 ==
-        "!=" => Token::Notequal,     // 不等于 !=
-        ">" => Token::Greater,       // 大于 >
-        "<" => Token::Less,          // 小于 <
-        ">=" => Token::GreaterEqual, // 大于等于 >=
-        "<=" => Token::LessEqual,    // 小于等于 <=
-        // 赋值
-        "=" => Token::Assign, // 赋值 =
+/// 若 `index` 已经是最后一个字符，则 `ch` 将是 '\0'
+pub fn change_state(
+    vec_ch: &[char],
+    index: &mut usize,
+    ch: &mut char,
+    state: &mut i32,
+    target_state: i32,
+) {
+    read_next(vec_ch, index, ch);
+    *state = target_state;
+}
 
-        // 意外情况
-        _ => Token::Unknown,
+/// CFG 终止，获取终止时对应的 Token
+///
+/// - `vec_ch`:         字符序列
+/// - `last_index`:     上个 Token 结束位置
+/// - `curr_index`:     当前位置
+/// - `word`:           Token 对应的字符串将存放于此
+/// - `token`:          Token 种类
+/// - `exec_backtrack`: 是否为异常终结，启动错误处理
+pub fn terminate(
+    vec_ch: &[char],
+    last_index: &mut usize,
+    curr_index: usize,
+    word: &mut String,
+    token: Token,
+    exec_backtrack: bool,
+) -> Token {
+    if exec_backtrack {
+        backtrack();
     }
+
+    *word = String::from_iter(vec_ch[*last_index..curr_index].iter());
+    *last_index = curr_index - 1;
+
+    match token {
+        Token::LiteralInt8(_) => Token::LiteralInt8(i32::from_str_radix(&word[1..], 8).unwrap()),
+        Token::LiteralInt16(_) => Token::LiteralInt16(i32::from_str_radix(&word[2..], 16).unwrap()),
+        Token::LiteralInt10(_) => Token::LiteralInt10(word.parse().unwrap()),
+        Token::LiteralFloat(_) => Token::LiteralFloat(word.parse().unwrap()),
+        Token::Identifier(_) => Token::Identifier(word.to_string()),
+        Token::BlockComment(_) => Token::BlockComment(word.replace("\n", "\\n")),
+        Token::LineComment(_) => Token::LineComment(word.to_string()),
+        _ => token,
+    }
+}
+
+/// 从 `vec_ch` 中获取 `index` 的下一个字符，存放到 `ch` 中，并更新 `index`
+///
+/// 若 `index` 已经是最后一个字符，则 `ch` 将是 '\0'
+pub fn read_next(vec_ch: &[char], index: &mut usize, ch: &mut char) {
+    *index += 1;
+    *ch = util::nth(vec_ch, *index);
 }
