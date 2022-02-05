@@ -56,7 +56,7 @@ pub fn lexer(content: String) -> Vec<String> {
         println!("word = {:<8}, token = {}", word.replace("\n", "\\n"), token);
         result.push(format!(
             "\"word\": \"{}\", \"token\": \"{}\"",
-            word.replace("\n", "\\n"),
+            word.replace("\n", "\\n").replace("\"", "\\\""),
             token
         ));
     }
