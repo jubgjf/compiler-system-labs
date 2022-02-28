@@ -1,0 +1,13 @@
+TOPTARGETS := all clean
+
+SUBDIRS := lab1
+
+$(TOPTARGETS): $(SUBDIRS)
+
+$(SUBDIRS):
+	$(MAKE) -C $@ $(MAKECMDGOALS)
+
+run1:
+	$(MAKE) -C lab1 run
+
+.PHONY: $(TOPTARGETS) $(SUBDIRS)
