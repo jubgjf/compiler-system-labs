@@ -7,7 +7,10 @@ $(TOPTARGETS): $(SUBDIRS)
 $(SUBDIRS):
 	$(MAKE) -C $@ $(MAKECMDGOALS)
 
-run1:
+dir:
+	mkdir -p build
+
+run1: dir
 	$(MAKE) -C lab1 run
 
 .PHONY: $(TOPTARGETS) $(SUBDIRS)

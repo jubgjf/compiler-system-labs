@@ -1,0 +1,4 @@
+int main() {
+  // comment
+  int a = 0;
+}

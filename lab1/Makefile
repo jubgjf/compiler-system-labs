@@ -1,15 +1,18 @@
 BUILDDIR = ../build
 TESTDIR = ../test
-TESTFILE = $(TESTDIR)/test-lexical.txt
+TESTFILE = $(TESTDIR)/test-syntax.txt
 
 lex.yy.c: lexical.l
 	flex $^
 
-scanner: main.c lex.yy.c
-	gcc $^ -lfl -o $(BUILDDIR)/$@
+syntax.tab.h syntax.tab.c: syntax.y
+	bison -d $^
+
+scanner: main.c lex.yy.c syntax.tab.h syntax.tab.c tree.h tree.c
+	$(CC) $^ -lfl -ly -g -o $(BUILDDIR)/$@
 
 run: scanner
 	$(BUILDDIR)/$^ $(TESTFILE)
 
 clean:
-	rm $(BUILDDIR)/scanner lex.yy.c
+	$(RM) $(BUILDDIR)/scanner lex.yy.c syntax.tab.h syntax.tab.c
