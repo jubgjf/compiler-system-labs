@@ -1,0 +1,138 @@
+\documentclass{article}
+
+\usepackage[heading=true]{ctex}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{dirtree}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{qtree}
+
+\ctexset{
+    section={
+        number=\chinese{section},
+        format+=\raggedright
+    }
+}
+\geometry{a4paper, scale=0.7}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{lststyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+
+\lstset{style=lststyle}
+
+
+\title{实验一: 词法分析与语法分析}
+\author{1190200703 管健男}
+\date{}
+
+
+\begin{document}
+
+\maketitle
+
+
+\section{实现功能}
+
+\subsection{词法分析}
+
+可以识别的Token包括
+INT, FLOAT, STRUCT, RETURN, IF, ELSE, WHILE, TYPE, ID, SEMI, COMMA, ASSIGNOP,
+RELOP, PLUS, MINUS, STAR, DIV, AND, OR, DOT, NOT, LP, RP, LB, RB, LC, RC，
+其中INT为十进制数，FLOAT支持含有"e"的指数形式。
+
+可以识别"//"格式的注释。
+
+当出现词法分析错误时，将输出"Error type A at Line 行号."
+
+\subsection{语法分析}
+
+可以按照实验指导书规定的文法打印语法树。
+
+当出现词法分析错误时，将输出"Error type B at Line 行号."
+
+\section{编译方式}
+
+源代码提供了Makefile帮助编译，目录结构为
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.4\linewidth}
+        \dirtree{%
+            .1 compiler-system-labs.
+            .2 lab1.
+            .3 lexical.l.
+            .3 main.c.
+            .3 Makefile.
+            .3 README.md.
+            .3 syntax.y.
+            .3 tree.c.
+            .3 tree.h.
+            .2 Makefile.
+            .2 README.md.
+            .2 report.
+            .3 lab1.
+            .4 main.pdf.
+            .2 test.
+            .3 test-lexical.txt.
+            .3 test-syntax.txt.
+        }
+    \end{minipage}
+\end{figure}
+
+其中最外层目录compiler-system-labs/下的Makefile将调用lab1/目录下的Makefile，
+因此只需在compiler-system-labs/下执行make run1即可运行实验一的语法分析程序。
+
+\section{亮点内容}
+
+\subsection{语法树的数据结构}
+
+语法树不是一颗二叉树，一个节点可能有多个子节点，如下图所示。
+
+\Tree [.Exp EXP ASSIGNOP [.Exp [.Exp id ] [.PLUS ] [.Exp INT ] ].Exp ].Exp
+
+可以采用两种方案：第一种是在一个节点中，存放其最左孩子和其右兄弟的指针。
+第二种是将这棵树转化为二叉树，再利用转换前后前序遍历输出的结果相同这一特性，打印出语法树。
+在本实验中，采用第一种方案，代码如下
+
+\begin{lstlisting}[language=C, caption=语法树节点数据结构]
+struct node {
+    int          lineno;        // 节点对应 token 所在的行号
+    enum token   token;         // token 类别
+    char         name[32];      // token 展示的名称
+    struct node* left_child;    // 节点的最左子节点
+    struct node* right_sibling; // 节点的右兄弟节点
+};
+\end{lstlisting}
+
+这样，当需要找到一个节点的所有子节点时，只需遍历其最左孩子的所有右兄弟节点即可。
+
+\subsection{可变参数}
+
+由于每一个节点的子节点数量都可能不一致，因此在创建节点时，传入的子节点数量可变。
+
+使用了C语言的va\_list(定义在stdarg.h)从而支持此功能。
+
+\end{document}
