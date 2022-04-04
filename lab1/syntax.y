@@ -10,16 +10,6 @@
 
     /// 语法树
     struct node* root = NULL;
-
-    /// 列号
-    int yycolumn = 1;
-
-    /// 列号自动更新
-    #define YY_USER_ACTION                                                     \
-        yylloc.first_line = yylloc.last_line = yylineno;                       \
-        yylloc.first_column                  = yycolumn;                       \
-        yylloc.last_column                   = yycolumn + yyleng - 1;          \
-        yycolumn += yyleng;
 %}
 
 /// yylval 类型

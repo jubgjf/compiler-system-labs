@@ -4,6 +4,16 @@
 
     /// 词法分析是否出现错误
     unsigned error_lexical = 0;
+
+    /// 列号
+    int yycolumn = 1;
+
+    /// 列号自动更新
+    #define YY_USER_ACTION                                                     \
+        yylloc.first_line = yylloc.last_line = yylineno;                       \
+        yylloc.first_column                  = yycolumn;                       \
+        yylloc.last_column                   = yycolumn + yyleng - 1;          \
+        yycolumn += yyleng;
 %}
 
 digit                               [0-9]
