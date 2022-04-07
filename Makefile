@@ -1,6 +1,6 @@
 TOPTARGETS := all clean
 
-SUBDIRS := lab1
+SUBDIRS := lab1 lab2
 
 $(TOPTARGETS): $(SUBDIRS)
 
@@ -12,5 +12,8 @@ dir:
 
 run1: dir
 	$(MAKE) -C lab1 run
+
+run2: dir
+	$(MAKE) -C lab2 run
 
 .PHONY: $(TOPTARGETS) $(SUBDIRS)

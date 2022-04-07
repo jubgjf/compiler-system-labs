@@ -1,0 +1,23 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build lab2",
+            "type": "shell",
+            "command": "make parser",
+            "options": {
+                "cwd": "${workspaceFolder}/lab2"
+            }
+        },
+        {
+            "label": "run lab2",
+            "type": "shell",
+            "command": "make run2",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        }
+    ]
+}
