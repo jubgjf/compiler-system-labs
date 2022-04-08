@@ -713,7 +713,7 @@ void Dec(struct node* node, struct type* specifier,
             if (!is_type_same(dec_item->field->type, exp_type)) {
                 // 类型不相符，报错
                 print_error(TYPE_MISMATCH_ASSIGN, node->lineno,
-                            "struct type mis matched for assignment.");
+                            "Type mismatched for assignment.");
             }
             if (dec_item->field->type && dec_item->field->type->kind == ARRAY) {
                 // 报错，对非 BASIC 类型赋值
@@ -921,7 +921,7 @@ struct type* Exp(struct node* node) {
             return NULL;
         } else if (func_item->field->type->kind != FUNCTION) {
             char msg[100] = {0};
-            sprintf(msg, "\"i\" is not a function.", lc->name);
+            sprintf(msg, "\"%s\" is not a function.", lc->name);
             print_error(NOT_A_FUNC, node->lineno, msg);
             return NULL;
         } else if (!strcmp(lc->right_sibling->right_sibling->name, "Args")) {
