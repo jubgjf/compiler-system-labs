@@ -1,0 +1,175 @@
+\documentclass{article}
+
+\usepackage[heading=true]{ctex}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{dirtree}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{qtree}
+
+\ctexset{
+    section={
+        number=\chinese{section},
+        format+=\raggedright
+    }
+}
+\geometry{a4paper, scale=0.7}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{lststyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+
+\lstset{style=lststyle}
+
+
+\title{实验二: 语义分析}
+\author{1190200703 管健男}
+\date{}
+
+
+\begin{document}
+
+\maketitle
+
+
+\section{实现功能}
+
+能够检查实验指导书上的所有17种错误类型。当出现语义分析错误时，将输出
+"Error type 错误码 at Line 行号: 错误提示."
+
+\section{编译方式}
+
+源代码提供了Makefile帮助编译，目录结构为
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.4\linewidth}
+        \dirtree{%
+            .1 compiler-system-labs.
+            .2 lab2.
+            .3 lexical.l.
+            .3 main.c.
+            .3 Makefile.
+            .3 README.md.
+            .3 semantic.c.
+            .3 semantic.h.
+            .3 syntax.y.
+            .3 tree.c.
+            .3 tree.h.
+            .2 Makefile.
+            .2 README.md.
+            .2 report.
+            .3 lab2.
+            .4 main.pdf.
+            .2 test.
+            .3 \ldots.
+        }
+    \end{minipage}
+\end{figure}
+
+其中最外层目录compiler-system-labs/下的Makefile将调用lab2/目录下的Makefile，
+因此只需在compiler-system-labs/下执行make run2即可运行实验二的语法分析程序。
+
+\section{亮点内容}
+
+\subsection{类型检查}
+
+代表类型的结构体声明如下。
+
+\begin{lstlisting}[language=C, caption=类型结构体声明]
+/// 类型
+struct type {
+    // 标识符类型
+    enum kind kind;
+
+    // 具体的类型由 kind 字段指示
+    union {
+        // 基本类型
+        enum basic_type basic;
+
+        // 数组类型
+        struct {
+            struct type* element_type; // 元素类型
+            int          size;         // 数组大小
+        } array;
+
+        // 结构体类型
+        struct {
+            char*         name;  // 结构体名
+            struct field* field; // 结构体各个字段链表
+        } structure;
+
+        // 函数类型
+        struct {
+            int           argc;        // 参数数量
+            struct field* argv;        // 参数链表
+            struct type*  return_type; // 返回类型
+        } function;
+    } u;
+};
+\end{lstlisting}
+
+其中采用 union 同时代表基本类型、数组类型、结构体类型、函数类型，
+并由 kind 字段标识其具体类型。
+
+其中代表数组类型的字段也是一个结构体，分别代表这个数组的元素类型，
+以及这个数组当前维度的大小。
+元素类型是一个继承属性，需要语法分析树的左兄弟节点提供其类型。
+
+代表结构体类型的字段是 structure 结构体，包含两个成员变量。
+name 字段代表这个结构体的名称，field 字段是结构体各个字段组成的链表的头指针。
+field 字段声明如下：
+
+\begin{lstlisting}[language=C, caption=field 结构体声明]
+/// 域：带有自己的名字和类型的“类型”
+struct field {
+    char*         name; // 名字
+    struct type*  type; // 类型
+    struct field* next; // 下一个域
+};
+\end{lstlisting}
+
+field代表一个有自己名字和类型的“类型”，称为“域”。
+可以将多个不同类型、不同名称的变量组合成一个链表，例如结构体各个字段和函数的各个参数。
+
+代表函数类型的字段是 function 结构体，包含三个成员变量。
+argc代表参数数量。argv是一个field类型的链表，各个参数依次存放至此。
+return\_type代表这个函数的返回类型，可以据此检查函数的返回值是否与接收返回值的变量匹配。
+
+\subsection{符号表}
+
+符号表本质上是一个哈希表。对变量名字符串进行哈希值计算，得到其在哈希表中的索引下标。
+哈希表中的每一个条目是一个链表，链表中的值是域信息。哈希表（符号表）的声明如下。
+
+\begin{lstlisting}[language=C, caption=符号表声明]
+/// 符号表，本质上是一个哈希表，用于根据符号名称快速找到对应的符号表条目
+struct sym_table {
+    /// 一个符号表条目 item 在表中的索引位置的计算方法是：
+    /// hash_array[HASH(`name`)] -> `name` 对应的符号表条目
+    struct table_item** hash_array;
+};
+\end{lstlisting}
+
+\end{document}
