@@ -72,11 +72,13 @@ void print_kind(struct type* type) {
 }
 
 void semantic_analysis(struct node* node) {
-    if (node == NULL)
+    if (node == NULL) {
         return;
+    }
 
-    if (!strcmp(node->name, "ExtDef"))
+    if (!strcmp(node->name, "ExtDef")) {
         ExtDef(node);
+    }
 
     semantic_analysis(node->left_child);
     semantic_analysis(node->right_sibling);
@@ -151,13 +153,15 @@ struct type* copy_type(struct type* src) {
 }
 
 int is_type_same(struct type* type1, struct type* type2) {
-    if (type1 == NULL || type2 == NULL)
+    if (type1 == NULL || type2 == NULL) {
         return 1;
-    if (type1->kind == FUNCTION || type2->kind == FUNCTION)
+    }
+    if (type1->kind == FUNCTION || type2->kind == FUNCTION) {
         return 0;
-    if (type1->kind != type2->kind)
+    }
+    if (type1->kind != type2->kind) {
         return 0;
-    else {
+    } else {
         switch (type1->kind) {
         case BASIC:
             return type1->u.basic == type2->u.basic;
@@ -222,12 +226,15 @@ struct table_item* new_table_item(struct field* field) {
 }
 
 int is_struct(struct table_item* item) {
-    if (item == NULL)
+    if (item == NULL) {
         return 0;
-    if (item->field->type->kind != STRUCTURE)
+    }
+    if (item->field->type->kind != STRUCTURE) {
         return 0;
-    if (item->field->type->u.structure.name)
+    }
+    if (item->field->type->u.structure.name) {
         return 0;
+    }
     return 1;
 }
 
@@ -792,10 +799,11 @@ struct type* Exp(struct node* node) {
                         // 报错，类型不匹配
                         print_error(TYPE_MISMATCH_ASSIGN, lc->lineno,
                                     "Type mismatched for assignment.");
-                    } else
+                    } else {
                         return_type = copy_type(expl);
+                    }
                 } else {
-                    //报错，左值
+                    // 报错，左值
                     print_error(LEFT_VAR_ASSIGN, lc->lineno,
                                 "The left-hand side of an assignment must be "
                                 "a variable.");
