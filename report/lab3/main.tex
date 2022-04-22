@@ -1,0 +1,119 @@
+\documentclass{article}
+
+\usepackage[heading=true]{ctex}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{dirtree}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{qtree}
+
+\ctexset{
+    section={
+        number=\chinese{section},
+        format+=\raggedright
+    }
+}
+\geometry{a4paper, scale=0.7}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{lststyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+
+\lstset{style=lststyle}
+
+
+\title{实验三: 中间代码生成}
+\author{1190200703 管健男}
+\date{}
+
+
+\begin{document}
+
+\maketitle
+
+
+\section{实现功能}
+
+能够生成中间代码，可以选择打印到文件还是stdout。
+
+\section{编译方式}
+
+源代码提供了Makefile帮助编译，目录结构为
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.4\linewidth}
+        \dirtree{%
+            .1 compiler-system-labs.
+            .2 lab3.
+            .3 inter.c.
+            .3 inter.h.
+            .3 lexical.l.
+            .3 main.c.
+            .3 Makefile.
+            .3 README.md.
+            .3 semantic.c.
+            .3 semantic.h.
+            .3 syntax.y.
+            .3 tree.c.
+            .3 tree.h.
+            .2 Makefile.
+            .2 README.md.
+            .2 report.
+            .3 lab3.
+            .4 main.pdf.
+            .2 test.
+            .3 \ldots.
+        }
+    \end{minipage}
+\end{figure}
+
+其中最外层目录compiler-system-labs/下的Makefile将调用lab3/目录下的Makefile，
+因此只需在compiler-system-labs/下执行make run3即可运行实验三的中间代码生成程序。
+
+\section{亮点内容}
+
+采用了双向链表式的IR存储。
+
+\begin{lstlisting}[language=C, caption=双向链表节点结构体声明]
+    /// 所有中间代码组成的双向链表的一个节点
+    struct inter_codes {
+        struct inter_code*   code;
+        struct inter_codes** prev;
+        struct inter_codes** next;
+    };
+\end{lstlisting}
+
+\begin{lstlisting}[language=C, caption=双向链表节点结构体声明]
+    /// 所有中间代码组成的双向链表
+    struct inter_code_list {
+        struct inter_codes* head;
+        struct inter_codes* tail;
+    };
+\end{lstlisting}
+
+优化部分，对中间代码的生成没有做优化。因此可能有一些临时变量冗余。
+
+\end{document}
