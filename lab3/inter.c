@@ -129,8 +129,7 @@ struct inter_code* new_iter_code(int kind, ...) {
 
 void print_iter_code(FILE* fp, struct inter_code_list* inter_code_list) {
     for (struct inter_codes* cur = inter_code_list->head; cur != NULL;
-         // TODO fix type
-         cur = cur->next) {
+         cur                     = cur->next) {
         switch (cur->code->kind) {
         case IR_LABEL:
             fprintf(fp, "LABEL ");
@@ -300,7 +299,6 @@ void add_inter_code(struct inter_code_list* inter_code_list,
         inter_code_list->tail = inter_codes;
     } else {
         // 链表非空，插入到末尾
-        // TODO fix type
         inter_code_list->tail->next = inter_codes;
         inter_codes->prev           = inter_code_list->tail;
         inter_code_list->tail       = inter_codes;
@@ -556,10 +554,16 @@ void translate_Exp(struct node* node, struct operand* place) {
                 // Exp -> Exp LB Exp RB
 
                 if (node->left_child->left_child->right_sibling &&
-                    !strcmp(node->left_child->left_child->right_sibling,
+                    !strcmp(node->left_child->left_child->right_sibling->name,
                             "LB")) {
-                    // TODO fix
-                    //多维数组，报错
+                    // Exp
+                    //  |
+                    //  v
+                    // Exp           LB Exp RB
+                    //  |
+                    //  v
+                    // Exp LB Exp RB
+                    // 即：Exp -> Exp LB Exp RB LB Exp RB，多维数组，报错
                     error_iter = 1;
                     printf(
                         "Cannot translate: Code containsvariables of "
@@ -666,26 +670,25 @@ void translate_Exp(struct node* node, struct operand* place) {
             if (!strcmp(node->left_child->name, "write")) {
                 gen_inter_code(IR_WRITE, arg_list->head->op);
             } else {
-                struct arg* argTemp = arg_list->head;
-                while (argTemp) {
-                    if (argTemp->op == OPA_VARIABLE) {
-                        // TODO fix
+                struct arg* arg_tmp = arg_list->head;
+                while (arg_tmp) {
+                    if (arg_tmp->op->kind == OPA_VARIABLE) {
                         struct table_item* item =
-                            get_table_item(table, argTemp->op->u.name);
+                            get_table_item(table, arg_tmp->op->u.name);
 
                         // 结构体作为参数需要传址
                         if (item && item->field->type->kind == STRUCTURE) {
                             struct operand* varTemp = new_tmp_var();
-                            gen_inter_code(IR_GET_ADDR, varTemp, argTemp->op);
+                            gen_inter_code(IR_GET_ADDR, varTemp, arg_tmp->op);
                             struct operand* varTempCopy =
                                 new_operand(OPA_ADDRESS, varTemp->u.name);
                             gen_inter_code(IR_ARG, varTempCopy);
                         }
                     } else {
                         // 一般参数直接传值
-                        gen_inter_code(IR_ARG, argTemp->op);
+                        gen_inter_code(IR_ARG, arg_tmp->op);
                     }
-                    argTemp = argTemp->next;
+                    arg_tmp = arg_tmp->next;
                 }
                 if (place) {
                     gen_inter_code(IR_CALL, place, func_temp);

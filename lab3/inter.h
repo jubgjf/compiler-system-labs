@@ -86,9 +86,9 @@ struct inter_code {
 
 /// 所有中间代码组成的双向链表的一个节点
 struct inter_codes {
-    struct inter_code*   code;
-    struct inter_codes** prev;
-    struct inter_codes** next;
+    struct inter_code*  code;
+    struct inter_codes* prev;
+    struct inter_codes* next;
 };
 
 /// 函数参数链表的一个节点
