@@ -13,9 +13,11 @@ parser: main.c lex.yy.c syntax.tab.h syntax.tab.c tree.h tree.c semantic.h seman
 run: parser
 	@echo "===== 指导书样例 3.1 ====="
 	@$(BUILDDIR)/$^ $(TESTDIR)/test-lab3-3-1.txt
+	@$(BUILDDIR)/$^ $(TESTDIR)/test-lab3-3-1.txt $(TESTDIR)/test-lab3-3-1-result.txt
 	@echo ""
 	@echo "===== 指导书样例 3.2 ====="
 	@$(BUILDDIR)/$^ $(TESTDIR)/test-lab3-3-2.txt
+	@$(BUILDDIR)/$^ $(TESTDIR)/test-lab3-3-2.txt $(TESTDIR)/test-lab3-3-2-result.txt
 	@echo ""
 
 clean:
